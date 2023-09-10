@@ -29,34 +29,31 @@ float4 fragment_main(VertexOut in [[stage_in]],
     return float4(color.r);
 }
 
-uint2 getIdx(uint x, uint y, uint2 t) {
-    uint2 i = uint2((x) % (t.x), (y) % (t.y));
-    return i;
+uint2 getIdx(uint2 pos, uint2 t) {
+    return uint2((pos.x + t.x) % (t.x), (pos.y + t.y) % (t.y));
 }
-
 
 kernel void stepLife(const device uint8_t* init [[buffer(0)]],
                      texture2d<uint, access::read> state[[texture(0)]],
                      texture2d<uint, access::write> output[[texture(1)]],
-                     uint2 gridSize [[thread_position_in_grid]],
+                     uint2 threadPositionInGrid [[thread_position_in_grid]],
                      uint2 threadsPerThreadgroup [[threads_per_threadgroup]],
                      uint2 threadgroupsPerGrid [[threadgroups_per_grid]])
 {
-    uint x = gridSize.x;
-    uint y = gridSize.y;
-    uint2 t = threadsPerThreadgroup * threadgroupsPerGrid;
 
-    uint C = state.read(getIdx(x, y, t)).r;
-    uint N = state.read(getIdx(x, y - 1, t)).r;
-    uint NE = state.read(getIdx(x + 1, y - 1, t)).r;
-    uint NW = state.read(getIdx(x - 1, y - 1, t)).r;
-    uint E = state.read(getIdx(x + 1, y, t)).r;
-    uint W = state.read(getIdx(x - 1, y, t)).r;
-    uint S = state.read(getIdx(x, y + 1, t)).r;
-    uint SE =state.read(getIdx(x + 1, y + 1, t)).r;
-    uint SW =state.read(getIdx(x - 1, y + 1, t)).r;
-    
-    uint total = N + NE + NW + E + W + S + SE + SW;
+    uint2 t = threadsPerThreadgroup * threadgroupsPerGrid;
+    uint C = state.read(getIdx(threadPositionInGrid, t)).r;
+    uint total = 0;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            if (!(x == 0 && y == 0)) { // exclude center
+                if (state.read(getIdx(threadPositionInGrid + uint2(x, y), t)).r == 1) {
+                    total += 1;
+                }
+            }
+        }
+    }
+
     uint o = (C && total == 2) || total == 3;
-    output.write(o, gridSize);
+    output.write(o, threadPositionInGrid);
 }
