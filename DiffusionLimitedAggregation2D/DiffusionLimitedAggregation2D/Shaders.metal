@@ -68,6 +68,8 @@ float4 mapToColor(float h, float s, float v) {
     return float4(colorRGB, 1.0); // returning RGBA
 }
 
+
+
 [[vertex]]
 VertexOut vertex_main(VertexIn in [[stage_in]],
                       constant Uniforms &uniforms [[buffer(2)]])
@@ -129,7 +131,10 @@ void emit(constant ParticleSystem &system, device Particle &particle, uint idx, 
                              remap(r[1], 0., 1., -1., 1.)
                                    );
     
-    particle.size = remap(r[4], 0., 1., 0.0006, 0.006);
+    float size = r[4] * r[4] * r[4] * r[4] * r[4] ; //easing
+    
+    particle.size = remap(size, 0., 1., 0.001, 0.02);
+
     particle.color = float4(1,0,0,0);
 
     particle.velocity = float2(remap(r[2], 0., 1., -1., 1.),
@@ -137,9 +142,10 @@ void emit(constant ParticleSystem &system, device Particle &particle, uint idx, 
                                );
     particle.age = 1.;
     particle.stuck = 0.;
-    //center-based growth
+   // center-based growth
 //    if(idx == 0){
 //        particle.stuck = 1.;
+//        particle.size = .05;
 //        particle.center = float2(0.,0.);
 //    }
 }
@@ -154,7 +160,9 @@ bool stick(constant ParticleSystem &system, device Particle const* particlesIn, 
         float squaredDist = (dx * dx) + (dy * dy);
         float squaredSize = (particlesIn[i].size + particlesIn[j].size) * (particlesIn[i].size + particlesIn[j].size);
         
-        if (squaredDist > 0 && squaredDist < squaredSize && particlesIn[j].stuck) {
+        if (squaredDist > 0 && squaredDist < squaredSize && particlesIn[j].stuck
+            && particlesIn[i].size < particlesIn[j].size
+            ) {
             return true;
         }
     }

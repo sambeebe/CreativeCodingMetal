@@ -10,7 +10,7 @@ class Renderer {
     let commandQueue: MTLCommandQueue
     var viewportSize = CGSize.zero
 
-    let particleCount = 30000
+    let particleCount = 20000
 
     var vertexDescriptor = MTLVertexDescriptor()
     var renderPipelineState: MTLRenderPipelineState!
@@ -154,12 +154,7 @@ class Renderer {
         computeCommandEncoder.setBuffer(particleBuffers[bufferIndex], offset: 0, index: 2)
         
         computeCommandEncoder.setBytes(&projectionParams, length: MemoryLayout<ProjectionParameters>.stride, index: 3)
-        
-    //    let threadgroupsPerGrid  = MTLSize(width: particleCount, height: 1, depth: 1);
-    //    let  threadgroupSize = MTLSize(width: 32, height: 1, depth: 1);
-     //   computeCommandEncoder.dispatchThreadgroups(threadgroupsPerGrid, threadsPerThreadgroup: threadgroupSize)
-
-       computeCommandEncoder.dispatchThreads(MTLSize(width: particleCount, height: 1, depth: 1),
+        computeCommandEncoder.dispatchThreads(MTLSize(width: particleCount, height: 1, depth: 1),
                                               threadsPerThreadgroup: MTLSize(width: 32, height: 1, depth: 1))
         computeCommandEncoder.endEncoding()
     }
