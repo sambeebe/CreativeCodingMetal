@@ -8,9 +8,9 @@ import SwiftUI
 class Renderer {
     let device: MTLDevice
     let commandQueue: MTLCommandQueue
-    var viewportSize = CGSize.init(width: 800, height: 800)
+    var viewportSize = CGSize.zero
 
-    let particleCount = 1000000
+    let particleCount = 150000
 
     var vertexDescriptor = MTLVertexDescriptor()
     var renderPipelineState: MTLRenderPipelineState!
@@ -19,10 +19,10 @@ class Renderer {
     var particleBuffers = [MTLBuffer]()
     var texture: MTLTexture!
     var bufferIndex = 0
-//    var projectionParams = ProjectionParameters(left: -1, right: 1, top: 1, bottom: -1, near: -1, far: 1)
-//    let projectionMatrix = simd_float4x4(orthographicProjectionWithLeft: -1, top: 1 , right: 1, bottom: -1 , near: -1, far: 1)
-    var projectionParams = ProjectionParameters(left: 0, right: 1.92, top: 1.08, bottom: 0.0, near: -1, far: 1)
-    let projectionMatrix = simd_float4x4(orthographicProjectionWithLeft: 0, top: 1.08 , right: 1.92, bottom: 0 , near: -1, far: 1)
+    var projectionParams = ProjectionParameters(left: -1, right: 1, top: 1, bottom: -1, near: -1, far: 1)
+    let projectionMatrix = simd_float4x4(orthographicProjectionWithLeft: -1, top: 1 , right: 1, bottom: -1 , near: -1, far: 1)
+//    var projectionParams = ProjectionParameters(left: 0, right: 1.92, top: 1.08, bottom: 0.0, near: -1, far: 1)
+//    let projectionMatrix = simd_float4x4(orthographicProjectionWithLeft: 0, top: 1.08 , right: 1.92, bottom: 0 , near: -1, far: 1)
     var uniforms = Uniforms()
     
     init(device: MTLDevice, commandQueue: MTLCommandQueue) {
@@ -43,8 +43,8 @@ class Renderer {
         let vertexData: [Float] = [
         //    x     y    z    u    v
              0.0,  0.15, 0.0, 0.0, 0.0, // upper left
-            -0.039, -0.039, 0.0, 0.0, 1.0, // lower left
-             0.039, -0.039, 0.0, 1.0, 1.0, // lower right
+            -0.04, -0.04, 0.0, 0.0, 1.0, // lower left
+             0.04, -0.04, 0.0, 1.0, 1.0, // lower right
         ]
 
         vertexDescriptor.attributes[0].format = .float3
@@ -141,21 +141,17 @@ class Renderer {
         }
     }
 
-    func update(_ commandBuffer: MTLCommandBuffer, h_val: Float) {
+    func update(_ commandBuffer: MTLCommandBuffer) {
 
         var particleSystem = ParticleSystem(position: simd_float4(0.5, 0.5, 0, 1),
-                                            lifeSpan: 10,
-                                            speed: 5,
-                                            separation: 1.55056364313,
-                                            alignment: 5.5,
-                                            cohesion: 2.0,
-                                            mass: 260.0,
-                                            max_velocity: 1.0,
-                                            max_force: 5.5,
-                                            gravity: simd_float2(0.0, -9.008),
-                                            timeStep: 0.007,
-                                            neighbordist: 30.5,
-                                            desiredseparation: 30.5
+                                            timeStep: 0.006,
+                                            separation: 0.9,
+                                            alignment: 0.8,
+                                            cohesion: 0.50,
+                                            max_velocity: 1.5,
+                                            max_force: 5.0,
+                                            neighbordist: 1.8,
+                                            desiredseparation: 0.5
         )
 
 
@@ -189,20 +185,12 @@ class Renderer {
     }
 }
 
-struct ContentView: View {
-    @State public var sliderValue: Float = 1.4
-    var body: some View {
-        Slider(value: $sliderValue, in: 0.1...6.0)
-    }
-}
-
 
 class ViewController: NSViewController, MTKViewDelegate {
     private var device: MTLDevice!
     private var commandQueue: MTLCommandQueue!
     private var renderer: Renderer!
     private var metalView: MTKView!
-    var contentView: ContentView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -222,11 +210,7 @@ class ViewController: NSViewController, MTKViewDelegate {
         metalView.delegate = self
         metalView.colorPixelFormat = .bgra8Unorm_srgb
         metalView.clearColor = MTLClearColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
-        
-        contentView = ContentView()
-        let hostingController = NSHostingController(rootView: contentView)
-        hostingController.view.frame = NSRect(x: 20, y:0, width: 200, height: 20)
-        addChild(hostingController)
+
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -238,7 +222,7 @@ class ViewController: NSViewController, MTKViewDelegate {
 
         guard let renderPassDescriptor = view.currentRenderPassDescriptor else { return }
 
-        renderer.update(commandBuffer, h_val: contentView.sliderValue)
+        renderer.update(commandBuffer)
 
         let renderCommandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
         renderer.draw(renderCommandEncoder)

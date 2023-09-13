@@ -14,16 +14,12 @@ typedef struct {
 
 typedef struct {
     simd_float4 position;
-    float lifeSpan;
-    float speed;
+    float timeStep;
     float separation;
     float alignment;
     float cohesion;
-    float mass;
     float max_velocity;
     float max_force;
-    simd_float2 gravity;
-    float timeStep;
     float neighbordist;
     float desiredseparation;
 } ParticleSystem;

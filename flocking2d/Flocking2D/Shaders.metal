@@ -27,16 +27,12 @@ struct Particle {
 
 struct ParticleSystem {
     float4 position;
-    float lifeSpan;
-    float speed;
+    float timeStep;
     float separation;
     float alignment;
     float cohesion;
-    float mass;
     float max_velocity;
     float max_force;
-    float2 gravity;
-    float timeStep;
     float neighbordist;
     float desiredseparation;
 };
@@ -142,25 +138,32 @@ float2 limit(float2 v, float maxMagnitude) {
 
 
 void emit(constant ParticleSystem &system, device Particle &particle, uint idx, uint t) {
-    const float cellSize = 0.00075;
     float randSeed = float(idx);
     float r[] = {
         gold_noise(float2(3.0, 5.0), randSeed),
         gold_noise(float2(7.0, 9.0), randSeed),
         gold_noise(float2(9.0, 11.0), randSeed),
+        gold_noise(float2(11.0, 13.0), randSeed),
+        gold_noise(float2(13.0, 15.0), randSeed)
     };
+
+    particle.center = float2(
+                             remap(r[0], 0., 1., -1., 1.),
+                             remap(r[1], 0., 1., -1., 1.)
+                                   );
     
-    uint gridX = idx % (int)sqrt((float)t);
-    uint gridY = idx / (int)sqrt((float)t);
-    
-    particle.center = float2(gridX * cellSize, (gridY * cellSize));
-    particle.center.x += r[0];
-    particle.center -= 0.75;
-    particle.size = .18;
+    particle.size = remap(r[4], 0., 1., 0.0006, 0.006);
     particle.color = float4(1,0,0,0);
-    particle.velocity = float2(r[1],r[2]);
+
+    //TODO: starting velocity can't be negative?
+    particle.velocity = float2(remap(r[2], 0., 1., -1., 1.),
+                               remap(r[3], 0., 1., -1., 1.)
+                               );
+
+
+    particle.size = .025;
     particle.age = 1.;
-    particle.force = float2(0,0);
+
 }
 
 
@@ -191,13 +194,15 @@ void update(constant ParticleSystem &system, constant ProjectionParameters &proj
     particle.force = 0.0;
 }
 
-float2 separate(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, uint tt){
+//Based on the Coding Train example. Very unoptimized right now.
+float2 separate(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, int t){
     float2 steer = float2(0.,0.);
     int count = 0;
     int i = idx;
     
-    for (int j = 0; j < (int)tt; j++) {
+    for (int j = 0; j < t; j++) {
         float d = distance(particlesIn[i].center, particlesIn[j].center);
+        //TODO: check squared distances
         if((d>0) && d < system.desiredseparation){
             float2 diff = particlesIn[j].center - particlesIn[i].center;
             diff = normalize(diff);
@@ -216,12 +221,12 @@ float2 separate(constant ParticleSystem &system,  device Particle const* particl
     return steer;
 }
 
-float2 align(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, uint tt){
+float2 align(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, int t){
     float2 sum = float2(0.,0.);
     int i = idx;
     
     int count = 0;
-    for (int j = 0; j < (int)tt; j++) {
+    for (int j = 0; j < t; j++) {
         float d = distance(particlesIn[i].center, particlesIn[j].center);
         if((d>0) && d < system.neighbordist){
             sum += particlesIn[i].velocity;
@@ -248,12 +253,12 @@ float2 seek(float2 target, float2 position, float2 velocity, constant ParticleSy
     return steer;
 }
 
-float2 cohesion(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, uint tt){
+float2 cohesion(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, int t){
     float2 sum = float2(0.,0.);
     int i = idx;
     
     int count = 0;
-    for (int j = 0; j < (int)tt; j++) {
+    for (int j = 0; j < t; j++) {
         float d = distance(particlesIn[i].center, particlesIn[j].center);
         if((d>0) && d < system.neighbordist){
             sum += particlesIn[i].center;
@@ -288,21 +293,22 @@ void update_particle(
     device Particle* particlesOut [[ buffer(2) ]],
     constant ProjectionParameters &projectionParams [[buffer(3)]],  // <-- Add this line
     uint idx [[ thread_position_in_grid ]],
-    uint tt [[threads_per_threadgroup]]
-) {
+    uint threadsPerThreadgroup [[threads_per_threadgroup]],
+    uint threadgroupsPerGrid [[threadgroups_per_grid]])
+  {
     
     particlesOut[idx] = particlesIn[idx];
-
+    uint t = threadsPerThreadgroup * threadsPerThreadgroup;
     const float timestep = system.timeStep;
 
     float2 force = float2(0.,0.);
-    force += separate(system, particlesIn, idx, tt) * system.separation;
-    force += align(system, particlesIn, idx, tt) * system.alignment;
-    force += cohesion(system, particlesIn, idx, tt) * system.cohesion;
+    force += separate(system, particlesIn, idx, t) * system.separation;
+    force += align(system, particlesIn, idx, t) * system.alignment;
+    force += cohesion(system, particlesIn, idx, t) * system.cohesion;
    // force += wanted(system, particlesIn, idx, float2(0.,0.), 0.45) * -1.5;
 
     if (particlesOut[idx].age != 1.) {
-        emit(system, particlesOut[idx], idx, tt);
+        emit(system, particlesOut[idx], idx, t);
         
     } else {
         update(system, projectionParams, particlesOut[idx], timestep, force);
