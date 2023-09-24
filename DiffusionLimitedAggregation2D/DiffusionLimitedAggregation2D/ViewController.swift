@@ -96,6 +96,10 @@ class Renderer {
             particleBuffers.append(particleBuffer)
         }
         bufferIndex = 0
+        
+        let textureLoader = MTKTextureLoader(device: device)
+        let textureURL = Bundle.main.url(forResource: "particle", withExtension: "png")!
+        texture = try! textureLoader.newTexture(URL: textureURL, options: [.generateMipmaps : true, .SRGB : true])
 
     }
 
@@ -113,7 +117,7 @@ class Renderer {
         renderPipelineDescriptor.vertexFunction = vertexFunction
         renderPipelineDescriptor.fragmentFunction = fragmentFunction
         renderPipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
-
+        renderPipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
         renderPipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .one
         renderPipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
         renderPipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha

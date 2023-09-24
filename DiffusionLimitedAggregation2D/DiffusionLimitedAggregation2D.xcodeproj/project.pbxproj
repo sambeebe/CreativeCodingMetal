@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		22F3C6AC2ABF6BBA00A20EA2 /* particle.png in Resources */ = {isa = PBXBuildFile; fileRef = 22F3C6AB2ABF6BBA00A20EA2 /* particle.png */; };
 		833786302A706DB900B550E6 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8337862F2A706DB900B550E6 /* AppDelegate.swift */; };
 		833786322A706DB900B550E6 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 833786312A706DB900B550E6 /* ViewController.swift */; };
 		833786372A706DBB00B550E6 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 833786352A706DBB00B550E6 /* Main.storyboard */; };
@@ -16,6 +17,7 @@
 
 /* Begin PBXFileReference section */
 		220D40372A8EA45400B58305 /* Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Header.h; sourceTree = "<group>"; };
+		22F3C6AB2ABF6BBA00A20EA2 /* particle.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = particle.png; path = DiffusionLimitedAggregation2D/particle.png; sourceTree = "<group>"; };
 		8337862C2A706DB900B550E6 /* DiffusionLimitedAggregation2D.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DiffusionLimitedAggregation2D.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8337862F2A706DB900B550E6 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		833786312A706DB900B550E6 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -39,6 +41,7 @@
 		833786232A706DB800B550E6 = {
 			isa = PBXGroup;
 			children = (
+				22F3C6AB2ABF6BBA00A20EA2 /* particle.png */,
 				8337862E2A706DB900B550E6 /* DiffusionLimitedAggregation2D */,
 				8337862D2A706DB900B550E6 /* Products */,
 			);
@@ -125,6 +128,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				833786372A706DBB00B550E6 /* Main.storyboard in Resources */,
+				22F3C6AC2ABF6BBA00A20EA2 /* particle.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

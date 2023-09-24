@@ -68,6 +68,9 @@ float4 mapToColor(float h, float s, float v) {
     return float4(colorRGB, 1.0); // returning RGBA
 }
 
+float easeInCirc(float x) {
+    return 1.0 - sqrt(1.0 - (x * x));
+}
 
 
 [[vertex]]
@@ -82,33 +85,32 @@ VertexOut vertex_main(VertexIn in [[stage_in]],
     out.position = MVP * float4(particlePosition, 1.0f);
     out.texCoords = in.texCoords;
     out.center = in.center;
-//    out.color = mapToColor(
-//                           distance(in.center, float2(0.,0.)) * .4,
-//                           1.,
-//                           1);
     out.color = in.color;
     out.size = in.size;
 
     return out;
 }
 
-[[fragment]]
-float4 fragment_main(VertexOut in [[stage_in]])
-{
-    float2 fragPos = in.texCoords;
-    float2 center = float2(0.5, 0.5);
-
-    float radius = in.size;
-    float distance = length(fragPos - center);
-
-    float falloff = smoothstep(radius - 0.01, radius + 0.01, distance);
-
-
-    float4 color = in.color;
-    color.a *= falloff;
-
-    return color;
+float3 getColor(float t){
+    float3 a = float3(0.5, 0.5, 0.5);
+    float3 b = float3(0.5, 0.5, 0.5);
+    float3 c = float3(1.0, 1.0, 1.0);
+    float3 d = float3(0.0, 0.33, 0.67);
+    return a + b * cos(6.28318 * (c * t + d));
 }
+
+[[fragment]]
+float4 fragment_main(VertexOut in [[stage_in]],
+                     texture2d<float, access::sample> colorMap [[texture(0)]])
+{
+    constexpr sampler blinearSampler(coord::normalized, filter::linear, mip_filter::linear);
+
+//    float4 color = colorMap.sample(blinearSampler, in.texCoords) * in.color;
+    float4 texcolor = colorMap.sample(blinearSampler, in.texCoords);
+    float3 color = texcolor.rgb * in.color.rgb;
+    return float4(color*texcolor.a,texcolor.a);//float4(1, 0, 0, 1);
+}
+
 
 constant float PHI = 1.61803398874989484820459;
 
@@ -131,11 +133,11 @@ void emit(constant ParticleSystem &system, device Particle &particle, uint idx, 
                              remap(r[1], 0., 1., -1., 1.)
                                    );
     
-    float size = r[4] * r[4] * r[4] * r[4] * r[4] ; //easing
-    
-    particle.size = remap(size, 0., 1., 0.001, 0.02);
+    float size =easeInCirc(r[4]);// r[4] * r[4] * r[4] * r[4] * r[4] ; //easing
+    particle.color = float4(getColor(size),1);
+    particle.size = remap(size, 0., 1., 0.002, 0.03);
 
-    particle.color = float4(1,0,0,0);
+    //particle.color = float4(1,0,0,0);
 
     particle.velocity = float2(remap(r[2], 0., 1., -1., 1.),
                                remap(r[3], 0., 1., -1., 1.)
@@ -143,11 +145,11 @@ void emit(constant ParticleSystem &system, device Particle &particle, uint idx, 
     particle.age = 1.;
     particle.stuck = 0.;
    // center-based growth
-//    if(idx == 0){
-//        particle.stuck = 1.;
-//        particle.size = .05;
-//        particle.center = float2(0.,0.);
-//    }
+    if(idx == 0){
+        particle.stuck = 1.;
+        particle.size = .05;
+        particle.center = float2(0.,0.);
+    }
 }
 
 bool stick(constant ParticleSystem &system, device Particle const* particlesIn, uint idx, int t) {
@@ -199,7 +201,8 @@ void update(constant ParticleSystem &system, constant ProjectionParameters &proj
     }
     
     if(particle.stuck){
-        particle.color = float4(0,0,1,1);
+        //particle.color = float4(0,0,1,1);
+
         particle.velocity = float2(0.,0.);
     }
     
