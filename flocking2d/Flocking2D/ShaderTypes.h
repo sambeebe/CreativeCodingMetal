@@ -9,8 +9,13 @@ typedef struct {
     float rotation;
     simd_float2 velocity;
     simd_float2 force;
+    float gridID;
     
 } Particle;
+
+typedef struct {
+    uint histogram[150000];
+} Grid;
 
 typedef struct {
     simd_float4 position;
@@ -22,6 +27,8 @@ typedef struct {
     float max_force;
     float neighbordist;
     float desiredseparation;
+    uint32_t gridWidth;
+    uint32_t gridHeight;
 } ParticleSystem;
 
 struct Uniforms {

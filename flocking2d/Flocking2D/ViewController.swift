@@ -11,7 +11,11 @@ class Renderer {
     var viewportSize = CGSize.zero
 
     let particleCount = 150000
-
+    
+    let gridWidth = 10
+    let gridHeight = 10
+    var histogramBuffer: MTLBuffer!
+    
     var vertexDescriptor = MTLVertexDescriptor()
     var renderPipelineState: MTLRenderPipelineState!
     var particleComputePipelineState: MTLComputePipelineState!
@@ -19,8 +23,8 @@ class Renderer {
     var particleBuffers = [MTLBuffer]()
     var texture: MTLTexture!
     var bufferIndex = 0
-    var projectionParams = ProjectionParameters(left: -1, right: 1, top: 1, bottom: -1, near: -1, far: 1)
-    let projectionMatrix = simd_float4x4(orthographicProjectionWithLeft: -1, top: 1 , right: 1, bottom: -1 , near: -1, far: 1)
+    var projectionParams = ProjectionParameters(left: 0, right: 1, top: 1, bottom: 0, near: -1, far: 1)
+    let projectionMatrix = simd_float4x4(orthographicProjectionWithLeft: 0, top: 1 , right: 1, bottom: 0 , near: -1, far: 1)
 //    var projectionParams = ProjectionParameters(left: 0, right: 1.92, top: 1.08, bottom: 0.0, near: -1, far: 1)
 //    let projectionMatrix = simd_float4x4(orthographicProjectionWithLeft: 0, top: 1.08 , right: 1.92, bottom: 0 , near: -1, far: 1)
     var uniforms = Uniforms()
@@ -56,7 +60,7 @@ class Renderer {
         vertexDescriptor.attributes[1].bufferIndex = 0
 
         vertexDescriptor.layouts[0].stride = MemoryLayout<Float>.stride * 5
-
+//running stride
         vertexDescriptor.attributes[2].format = .float4 // color
         vertexDescriptor.attributes[2].offset = 0
         vertexDescriptor.attributes[2].bufferIndex = 1
@@ -84,6 +88,7 @@ class Renderer {
         vertexDescriptor.attributes[8].format = .float2; // force
         vertexDescriptor.attributes[8].offset = MemoryLayout<Float>.stride * 11
         vertexDescriptor.attributes[8].bufferIndex = 1;
+
     
 
         vertexDescriptor.layouts[1].stride = MemoryLayout<Particle>.stride
@@ -100,6 +105,9 @@ class Renderer {
             particleBuffers.append(particleBuffer)
         }
         bufferIndex = 0
+        
+        histogramBuffer = device.makeBuffer(length: MemoryLayout<UInt32>.stride * gridWidth * gridHeight,
+                                            options: .storageModePrivate)!
 
     }
 
@@ -150,11 +158,16 @@ class Renderer {
                                             cohesion: 0.50,
                                             max_velocity: 1.5,
                                             max_force: 5.0,
-                                            neighbordist: 1.8,
-                                            desiredseparation: 0.5
+                                            neighbordist: 0.8,
+                                            desiredseparation: 0.5,
+                                            gridWidth: UInt32(gridWidth),
+                                            gridHeight: UInt32(gridHeight)
         )
 
-
+        let blitCommandEncoder = commandBuffer.makeBlitCommandEncoder()!
+        blitCommandEncoder.fill(buffer: histogramBuffer, range: 0..<(gridWidth*gridHeight*4), value: 0)
+        blitCommandEncoder.endEncoding()
+        
         let computeCommandEncoder = commandBuffer.makeComputeCommandEncoder()!
         computeCommandEncoder.setComputePipelineState(particleComputePipelineState)
         computeCommandEncoder.setBytes(&particleSystem, length: MemoryLayout<ParticleSystem>.stride, index: 0)
@@ -164,7 +177,7 @@ class Renderer {
         computeCommandEncoder.setBuffer(particleBuffers[bufferIndex], offset: 0, index: 2)
         
         computeCommandEncoder.setBytes(&projectionParams, length: MemoryLayout<ProjectionParameters>.stride, index: 3)
-        
+        computeCommandEncoder.setBuffer(histogramBuffer, offset: 0, index: 4)
         
         
         computeCommandEncoder.dispatchThreads(MTLSize(width: particleCount, height: 1, depth: 1),

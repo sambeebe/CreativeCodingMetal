@@ -12,6 +12,8 @@ struct VertexIn {
     float age        [[attribute(5)]];
     float rotation   [[attribute(6)]];
     float2 velocity  [[attribute(7)]];
+    float2 force     [[attribute(8)]];
+    float ID         [[attribute(9)]];
 };
 
 struct Particle {
@@ -22,6 +24,7 @@ struct Particle {
     float rotation;
     float2 velocity;
     float2 force;
+    float gridID;
     
 };
 
@@ -35,6 +38,8 @@ struct ParticleSystem {
     float max_force;
     float neighbordist;
     float desiredseparation;
+    uint32_t gridWidth;
+    uint32_t gridHeight;
 };
 
 struct Uniforms {
@@ -91,6 +96,24 @@ float4 mapToColor(float h, float s, float v) {
     return float4(colorRGB, 1.0); // returning RGBA
 }
 
+float3 palette(float t, float3 a, float3 b, float3 c, float3 d) {
+    return a + b * cos(6.28318 * (c * t + d));
+}
+
+float3 getColor(float t){
+    float3 a = float3(0.5, 0.5, 0.5);
+    float3 b = float3(0.5, 0.5, 0.5);
+    float3 c = float3(1.0, 1.0, 1.0);
+    float3 d = float3(0.0, 0.33, 0.67);
+//    0.5, 0.5, 0.5        0.5, 0.5, 0.5    1.0, 1.0, 1.0    0.00, 0.10, 0.20
+//    float3 a = float3(0.5, 0.5, 0.5);
+//    float3 b = float3(0.5, 0.5, 0.5);
+//    float3 c = float3(1.0, 1.0, 1.0);
+//    float3 d = float3(0.0, 0.1, 0.2);
+
+    return a + b * cos(6.28318 * (c * t + d));
+}
+
 [[vertex]]
 VertexOut vertex_main(VertexIn in [[stage_in]],
                       constant Uniforms &uniforms [[buffer(2)]])
@@ -111,9 +134,10 @@ VertexOut vertex_main(VertexIn in [[stage_in]],
     VertexOut out;
     out.position = MVP * float4(particlePosition, 1.0f);
     out.texCoords = in.texCoords;
-    out.color = mapToColor(remap(in.rotation, 0., M_PI * 2., 0., 1.),
-                           inOutExponential(remap(length(in.velocity), -1., 1., .06, .98)),
-                           .5);
+//    out.color = mapToColor(remap(in.rotation, 0., M_PI * 2., 0., 1.),
+//                           inOutExponential(remap(length(in.velocity), -1., 1., .06, .98)),
+//                           .5);
+    out.color = in.color;
     return out;
 }
 
@@ -154,13 +178,9 @@ void emit(constant ParticleSystem &system, device Particle &particle, uint idx, 
     
     particle.size = remap(r[4], 0., 1., 0.0006, 0.006);
     particle.color = float4(1,0,0,0);
-
-    //TODO: starting velocity can't be negative?
     particle.velocity = float2(remap(r[2], 0., 1., -1., 1.),
                                remap(r[3], 0., 1., -1., 1.)
                                );
-
-
     particle.size = .025;
     particle.age = 1.;
 
@@ -168,33 +188,7 @@ void emit(constant ParticleSystem &system, device Particle &particle, uint idx, 
 
 
 
-void update(constant ParticleSystem &system, constant ProjectionParameters &projectionParams, device Particle &particle, float timestep, float2 force) {
-    float x_max = projectionParams.right;
-    float x_min = projectionParams.left;
-    float y_max = projectionParams.top;
-    float y_min = projectionParams.bottom;
-    particle.velocity += timestep * force;
-    particle.velocity = limit(particle.velocity, system.max_velocity);
 
-    particle.rotation = atan2(particle.velocity.x, particle.velocity.y);
-    particle.center += particle.velocity * timestep;
-
-    if(particle.center.x > x_max){
-        particle.center.x = x_min;
-    }
-    if(particle.center.x < x_min){
-       particle.center.x = x_max;
-    }
-    if(particle.center.y > y_max){
-        particle.center.y = y_min;
-    }
-    if(particle.center.y < y_min){
-        particle.center.y = y_max;
-    }
-    particle.force = 0.0;
-}
-
-//Based on the Coding Train example. Very unoptimized right now.
 float2 separate(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, int t){
     float2 steer = float2(0.,0.);
     int count = 0;
@@ -276,7 +270,7 @@ float2 cohesion(constant ParticleSystem &system,  device Particle const* particl
 float2 wanted(constant ParticleSystem &system,  device Particle const* particlesIn, uint idx, float2 wantedPos, float radius){
     int i = idx;
     float2 toWanted = wantedPos - particlesIn[i].center;
-    float d = length(toWanted); // Distance to the wanted position.
+    float d = length(toWanted);
     if (d < radius && d > 0.0) {
         toWanted = normalize(toWanted);
         float2 desiredVelocity = toWanted * system.max_velocity;
@@ -285,19 +279,50 @@ float2 wanted(constant ParticleSystem &system,  device Particle const* particles
         return steer;
     } else {return float2(0.0, 0.0); }
 }
+
+
+void update(constant ParticleSystem &system, constant ProjectionParameters &projectionParams, device Particle &particle, float timestep, float2 force) {
+    float x_max = projectionParams.right;
+    float x_min = projectionParams.left;
+    float y_max = projectionParams.top;
+    float y_min = projectionParams.bottom;
+    particle.velocity += timestep * force;
+    particle.velocity = limit(particle.velocity, system.max_velocity);
+    particle.rotation = atan2(particle.velocity.x, particle.velocity.y);
+    particle.center += particle.velocity * timestep;
+
+    if(particle.center.x > x_max){
+        particle.center.x = x_min;
+    }
+    if(particle.center.x < x_min){
+       particle.center.x = x_max;
+    }
+    if(particle.center.y > y_max){
+        particle.center.y = y_min;
+    }
+    if(particle.center.y < y_min){
+        particle.center.y = y_max;
+    }
+    particle.force = 0.0;
     
+
+}
+
+
 [[kernel]]
 void update_particle(
     constant ParticleSystem &system [[buffer(0)]],
     device Particle const* particlesIn [[ buffer(1) ]],
     device Particle* particlesOut [[ buffer(2) ]],
-    constant ProjectionParameters &projectionParams [[buffer(3)]],  // <-- Add this line
+    constant ProjectionParameters &projectionParams [[buffer(3)]],
+    device atomic_uint* histogram [[buffer(4)]],
     uint idx [[ thread_position_in_grid ]],
     uint threadsPerThreadgroup [[threads_per_threadgroup]],
     uint threadgroupsPerGrid [[threadgroups_per_grid]])
   {
     
     particlesOut[idx] = particlesIn[idx];
+    device Particle& particle = particlesOut[idx];
     uint t = threadsPerThreadgroup * threadsPerThreadgroup;
     const float timestep = system.timeStep;
 
@@ -312,5 +337,16 @@ void update_particle(
         
     } else {
         update(system, projectionParams, particlesOut[idx], timestep, force);
+        
+        float cellSizeX = 1.0 / system.gridWidth;
+        float cellSizeY = 1.0 / system.gridHeight;
+        //
+        int cellX = int((particle.center.x ) / cellSizeX);
+        int cellY = int((particle.center.y ) / cellSizeY);
+        int cellIndex = cellY * system.gridWidth + cellX;
+        
+        particle.color = float4(getColor((float)cellIndex / 100.0), 1.0);
+        //each grid cell now has a value representing how many particles it contains
+        atomic_fetch_add_explicit(histogram + cellIndex, 1, memory_order_relaxed);
     }
 }
