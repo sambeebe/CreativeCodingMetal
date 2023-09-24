@@ -38,14 +38,14 @@ VertexOut vertex_main(VertexIn in [[stage_in]],
                       constant Uniforms &uniforms [[buffer(2)]])
 {
     float4x4 MVP = uniforms.projectionMatrix * uniforms.viewMatrix * uniforms.modelMatrix;
-    float4 viewPosition = uniforms.viewMatrix * float4(in.position, 1.0);
+    float4 viewPosition = uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0);
     float3 cubePosition = in.position * in.size + in.center;
 
     VertexOut out;
     out.position = MVP * float4(cubePosition, in.alive ? 1 : 0);
     out.viewPosition = viewPosition.xyz;
     out.texCoords = in.texCoords;
-    out.normal = in.normal;
+    out.normal = (uniforms.viewMatrix * uniforms.modelMatrix * float4(in.normal, 0.0)).xyz;
     out.color = in.color;
     return out;
 }
@@ -60,17 +60,17 @@ float4 fragment_main(VertexOut in [[stage_in]])
     float3 N = normalize(in.normal);
     float3 V = normalize(float3(0) - viewPosition);
 
-    float3 litColor { 1 };
+    float3 litColor { 0 };
 
-    float ambientFactor = .7;
+    float ambientFactor = .50;
     float diffuseFactor = .75;
-    float specularFactor = .7;
-    float intensity = .9;
+    float specularFactor = .0;
+    float intensity = 0.9;
     
-    float3 lightDirection =  float3(0,0,-1);
+    float3 lightDirection =  float3(0,0,1);
     float3 L = normalize(lightDirection);
     float3 H = normalize(L + V);
-    diffuseFactor = saturate(dot(N, L));
+    diffuseFactor = saturate(dot(N, L)); //gives you the cosine(angle)
     specularFactor = powr(saturate(dot(N, H)), specularExponent);
     
     litColor += (ambientFactor + diffuseFactor + specularFactor) * intensity * baseColor.rgb;
@@ -134,7 +134,7 @@ kernel void stepLife(const device uint8_t* init [[buffer(0)]],
         nextState = (C + 1) % 5;
     }
     
-    cube.color = float4(normalize(cube.center),1);
+    cube.color = float4(normalize(cube.center + 0.5),1);
     cube.alive = (int)nextState;
 
     uint o = (int)cube.alive;

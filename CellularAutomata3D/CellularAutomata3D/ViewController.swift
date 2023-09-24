@@ -235,6 +235,7 @@ class Renderer {
                                              aspectRatio: aspectRatio,
                                              nearZ: 0.1,
                                              farZ: 5.0)
+        
         var uniforms = Uniforms(modelMatrix: modelMatrix, viewMatrix: viewMatrix, projectionMatrix: projectionMatrix)
         renderCommandEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 2)
         
@@ -307,7 +308,6 @@ class ViewController: NSViewController, MTKViewDelegate {
         mtkView.sampleCount = 4
         metalView.delegate = self
         metalView.colorPixelFormat = .bgra8Unorm_srgb
-//        metalView.clearColor = MTLClearColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
         metalView.clearColor = MTLClearColor(red: 0.01, green: 0.01, blue: 0.01, alpha: 0.01)
     }
 
@@ -324,7 +324,7 @@ class ViewController: NSViewController, MTKViewDelegate {
        {
             renderer.update(commandBuffer)
        }
-     //   renderer.update(commandBuffer)
+
         let renderCommandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
         renderer.draw(renderCommandEncoder)
         renderCommandEncoder.endEncoding()

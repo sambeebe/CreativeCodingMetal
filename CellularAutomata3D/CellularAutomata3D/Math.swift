@@ -24,7 +24,7 @@ extension float4x4 {
                   float4(0, 0, s, 0),
                   float4(0, 0, 0, 1))
     }
-
+    //axis angle rotation formula
     init(rotationAbout axis: float3, by angleRadians: Float) {
         let x = axis.x, y = axis.y, z = axis.z
         let c = cosf(angleRadians)
